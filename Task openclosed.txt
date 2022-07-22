@@ -1,0 +1,69 @@
+trigger countOpenAndClosedTask on Task (after insert, after undelete, after delete, after update) {    
+    Set<Id> setOpenTaskAccountIds = new Set<Id>();
+    Set<Id> setClosedTaskAccountIds = new Set<Id>();
+    List<Account> listAccountUpdate = new List<Account>();
+    List<Account> listOpenTaskAccounts = new List<Account>();
+    List<Account> listClosedTaskAccounts = new List<Account>();
+    if(Trigger.IsAfter){
+        if(Trigger.IsInsert || Trigger.IsUndelete  || Trigger.isUpdate) {
+            for(Task t: Trigger.new) {
+                if(String.valueOf(t.WhatId).startsWithIgnoreCase('001')) {
+                    if(t.Status.equalsIgnoreCase('Completed')){
+                        setClosedTaskAccountIds.add(t.WhatId);
+                        System.debug('Task Completed'+setClosedTaskAccountIds);
+                    }
+                    else {
+                        setOpenTaskAccountIds.add(t.WhatId);
+                        System.debug('Task Open'+setOpenTaskAccountIds);
+                    }
+                    if(Trigger.IsUpdate){
+                        if(Trigger.oldMap.get(t.Id).WhatId != t.WhatId){
+                            if(t.Status.equalsIgnoreCase('Completed')){
+                                setClosedTaskAccountIds.add(Trigger.oldMap.get(t.Id).WhatId );
+                                System.debug('task Update Closed'+setClosedTaskAccountIds);
+                            }
+                            else {
+                                setOpenTaskAccountIds.add(Trigger.oldMap.get(t.Id).WhatId );
+                                System.debug('Inside Update Ope'+setOpenTaskAccountIds);
+                            }
+                        }
+                    }
+                }
+            }
+        }        
+        if(Trigger.IsDelete){
+            for(Task t : Trigger.Old){
+                if(String.valueOf(t.WhatId).startsWithIgnoreCase('001')) {
+                    if(t.Status.equalsIgnoreCase('Completed')){
+                        setClosedTaskAccountIds.add(t.WhatId);
+                        System.debug('@@@@Inside Deleted Completed');
+                    }
+                    else {
+                        setOpenTaskAccountIds.add(t.WhatId);
+                        System.debug('@@@@Inside Deleted Open');
+                    }
+                }
+            }
+        }            
+        listOpenTaskAccounts =[SELECT Id, Name, Open_Task__c,(Select Status From Tasks Where Status != 'Completed' ) FROM Account WHERE Id =:setOpenTaskAccountIds];
+        listClosedTaskAccounts =[SELECT Id, Name, Closed_Task__c,(Select Status From Tasks Where Status = 'Completed' )  FROM Account WHERE Id =:setClosedTaskAccountIds];
+        System.debug('@@@@ListOpenTaskAccounts'+listOpenTaskAccounts );
+        System.debug('@@@@ListClosedTaskAccounts'+listClosedTaskAccounts );       
+        for(Account acc:listOpenTaskAccounts) {
+            List<Task> listTask = acc.Tasks;
+            acc.Open_Task__c = listTask.size();
+            listAccountUpdate.add(acc);           
+        }
+        for(Account acc:listClosedTaskAccounts) {
+            List<Task> listTask = acc.Tasks;
+            acc.Closed_Task__c = listTask.size();
+            listAccountUpdate.add(acc);           
+        }
+        try{
+            System.debug('@@@@listAccountUpdate'+listAccountUpdate);
+            update listAccountUpdate;
+        }catch(System.Exception e){
+            System.debug('@@@error'+e.getMessage());
+        }
+    }
+}
