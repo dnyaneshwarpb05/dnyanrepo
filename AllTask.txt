@@ -1,0 +1,95 @@
+trigger CountTasks on Account (before update) {
+    
+    // Put all Opportunities into a Set
+    Set <Account>allAccIds= new Set<Account>();
+    for (Account newAcc : Trigger.new) {
+        allAccIDs.add(newAcc.ID);
+        System.debug('ID added: ' + newAcc.ID);
+    }
+    
+    //Query All Tasks to find Tasks with matching IDs
+    List <Task>allTasks = [SELECT Id, Status, WhatID from Task
+                           WHERE WhatID IN :allAccIDs];
+    System.debug('allTasks is ' + allTasks.size());
+    // Create a Map that lets you search for Tasks by their ID - faster than SOQL each time
+    
+    List TaskArray = new List(); //All Tasks
+    List IDToTaskMapOpen = new List(); //usedforOpenTasks
+    List IDToTaskMapClosed = new List(); //usedforClosedTasks
+    
+    Map elCountAll = new Map(); //Count of All Tasks
+    Map elCountOpen = new Map(); //Count of Open Tasks
+    Map elCountClosed = new Map(); //Count of Closed Tasks
+    
+    
+    
+    for (Task u : allTasks) {
+        if (u.Status != 'Completed' ) {
+            IDToTaskMapOpen.add(u.WhatID);
+            System.debug('Added Open Task');
+            
+        }
+        if (u.Status == 'Completed') {
+            System.debug('Added Completed Task');
+            IDToTaskMapClosed.add(u.WhatID);
+            
+        }
+        TaskArray.add(u.WhatID);
+    }  
+    
+    System.debug(allTasks.size());
+    System.debug(IDToTaskMapOpen.size());
+    System.debug(IDToTaskMapClosed.size());
+    
+    
+    
+    // Get the matching tasks from the Map - and count Status
+    //Start with our Opportunity
+    for (Account newAcc : Trigger.new) {
+        
+        //Count all Tasks
+        for(String key : TaskArray)
+        {
+            if(!elCountAll.containsKey(key)){
+                elCountAll.put(key,0);
+            }
+            Integer currentInt=elCountAll.get(key)+1;
+            elCountAll.put(key,currentInt);
+        }
+        
+        
+        //Count all Open Tasks
+        for(String key1 : IDToTaskMapOpen)
+        {
+            if(!elCountOpen.containsKey(key1)){
+                elCountOpen.put(key1,0);
+            }
+            Integer currentInt1=elCountOpen.get(key1)+1;
+            elCountOpen.put(key1,currentInt1);
+        }
+        
+        //Count all Closed Tasks
+        for(String key2 : IDToTaskMapClosed)
+        {
+            if(!elCountClosed.containsKey(key2)){
+                elCountClosed.put(key2,0);
+            }
+            Integer currentInt2=elCountClosed.get(key2)+1;
+            elCountClosed.put(key2,currentInt2);
+        }
+        
+        
+        //Finally update the record
+        //All Activities
+        newAcc.AllTasks__c = elCountAll.get(newAcc.ID);
+        
+        //Open & Not Started Tasks
+        newAcc.Open_Tasks__c = elCountOpen.get(newAcc.ID);
+        
+        //Closed Tasks
+        newAcc.Closed_Tasks__c = elCountClosed.get(newAcc.ID);
+        
+    }
+    
+    
+}
