@@ -1,0 +1,159 @@
+public  class AccountDeleteController 
+  {
+   @AuraEnabled(cacheable=true)
+   public static List<Case> displayAccounts(){
+       return [select Id,CaseNumber,Status from Case where status='New'];
+   }
+ 
+   
+    @AuraEnabled(cacheable=true)
+    public static List<Case> displayAccounts2(){
+        return [select Id,CaseNumber,Status from Case where status='in progress'];
+    }
+ 
+
+//////////////////ApexClass/////////////////
+   @AuraEnabled
+   public static List<Case> updateRecord(String accId){
+       System.debug('@@@@AccountId@@@'+accId);
+       Case acc=[select Id,CaseNumber,Status from Case where Id=:accId];
+       acc.Status='in progress';
+       try{
+           update acc;
+       }
+	   catch (Exception e) {
+           System.debug('unable to update the record due to'+e.getMessage());
+       }
+       return displayAccounts();
+     // return displayAccounts2();
+   }
+
+   @AuraEnabled
+   public static List<Case> updateRecord1(String accId1){
+       System.debug('@@@@AccountId@@@'+accId1);
+       Case acc1=[select Id,CaseNumber,Status from Case where Id=:accId1];
+       acc1.Status='in progress';
+       //Consol.log('success');
+       //insert acc1;
+       try{
+           update acc1;
+       }
+	   catch (Exception e) {
+           System.debug('unable to update the record due to'+e.getMessage());
+       }
+       return displayAccounts();
+     // return displayAccounts2();
+   }
+}
+.............................................................................
+HTML 
+
+
+<template>
+  <h1>New Cases User</h1>
+  <div style="width: 500px;">
+	<table class="slds-table slds-table_cell-buffer slds-table_bordered">
+		<tbody>
+		<tr>  
+			<td><b>CaseNumber</b></td>
+			<td><b>Status</b></td>
+			<td><b>Action</b></td>
+		</tr>
+        </tbody>
+		
+		<template for:each={cases.data} for:item="acc">
+			<tr key={acc.Id}>
+				<td>
+					{acc.CaseNumber}
+				</td>
+				<td>
+					{acc.Status}
+				</td>
+				<td>
+					<lightning-button label="update"  variant="brand" value={acc.Id} onclick={handleUpdate}>
+					</lightning-button>
+				</td>
+			</tr>
+		</template>
+		<!--/div-->
+	</table> 
+
+     <h1>   Case Inprogress Cases</h1>
+	<table class="slds-table slds-table_cell-buffer slds-table_bordered">
+		<tbody> 
+        <tr>
+			<td><b>CaseNumber</b></td>
+			<td><b>Status</b></td>
+			<td><b>Action</b></td>
+		</tr>
+        </tbody>
+
+		<template for:each={cases1.data} for:item="acc">
+			<tr key={acc.Id}>
+				<td>
+					{acc.CaseNumber}
+				</td>
+				<td>
+					{acc.Status}
+				</td>
+				<td>
+				<lightning-button label="update"  variant="brand" value={acc.Id} onclick={handleUpdate}>
+				</lightning-button>
+				</td>
+			</tr>
+		</template>
+	</table>
+</div>
+</template>
+...............................................................................................
+
+js code 
+
+import { LightningElement,api,wire } from 'lwc';
+import displayAccounts from '@salesforce/apex/AccountDeleteController.displayAccounts';
+import updateRecord from '@salesforce/apex/AccountDeleteController.updateRecord';
+import displayAccounts2 from '@salesforce/apex/AccountDeleteController.displayAccounts2';
+import { refreshApex } from '@salesforce/apex';
+export default class UpdateAccount extends LightningElement {
+	@api currentRecordId;
+	@api errorMessage;
+    @wire(displayAccounts) cases;
+    handleUpdate(event){
+        this.currentRecordId=event.target.value;
+        console.log('@@currentRecordId@@@'+this.currentRecordId);
+        updateRecord({
+            accId:this.currentRecordId
+        })
+        .then(() => {
+            console.log('SUCCESS');
+            return refreshApex(this.cases);
+        })
+        .catch((error) => {
+            this.errorMessage=error;
+			console.log('unable to update the record due to'+JSON.stringify(this.errorMessage));
+        });
+    } 
+
+
+   // @api currentRecordId;
+	//@api errorMessage;
+    @wire(displayAccounts2) cases1;
+    handleUpdate2(event){
+        this.currentRecordId=event.target.value;
+        console.log('@@currentRecordId@@@'+this.currentRecordId);
+        updateRecord1({
+            accId:this.currentRecordId1//need to change name if false
+        })
+        .then(() => {
+            console.log('SUCCESS');
+            return refreshApex(this.cases1);
+        })
+        .catch((error) => {
+            this.errorMessage=error;
+			console.log('unable to update the record due to'+JSON.stringify(this.errorMessage));
+        });
+        console.log('success');
+    }
+}
+
+
